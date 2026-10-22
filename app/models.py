@@ -47,7 +47,9 @@ class Producto(db.Model):
     precio = db.Column(db.Numeric(10, 2), nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
     detalles = db.relationship("DetalleVenta", back_populates="producto")
+    categoria = db.Column(db.String(50), nullable=True)
 
+    
     def __repr__(self):
         return f"<Producto {self.descripcion}>"
 
