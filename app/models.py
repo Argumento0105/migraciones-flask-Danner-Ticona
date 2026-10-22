@@ -1,6 +1,9 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from .extensions import db
 
+from datetime import datetime, timezone
+from decimal import Decimal
+
 
 class Usuario(db.Model):
     __tablename__ = "usuarios"
@@ -28,8 +31,12 @@ class Cliente(db.Model):
     email = db.Column(db.String(150), unique=True)
     telefono = db.Column(db.String(20))
 
+    ventas = db.relationship("Venta", back_populates="cliente")
+
     def __repr__(self):
         return f"<Cliente {self.nombre}>"
+
+    
 
 
 class Producto(db.Model):
@@ -39,6 +46,67 @@ class Producto(db.Model):
     descripcion = db.Column(db.String(255), nullable=False)
     precio = db.Column(db.Numeric(10, 2), nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
+    detalles = db.relationship("DetalleVenta", back_populates="producto")
 
     def __repr__(self):
         return f"<Producto {self.descripcion}>"
+
+
+class Venta(db.Model):
+    __tablename__ = "ventas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+    cliente_id = db.Column(
+        db.Integer,
+        db.ForeignKey("clientes.id"),
+        nullable=False
+    )
+
+    cliente = db.relationship("Cliente", back_populates="ventas")
+    detalles = db.relationship(
+        "DetalleVenta",
+        back_populates="venta",
+        cascade="all, delete-orphan"
+    )
+
+    @property
+    def total(self):
+        return sum(
+            (d.cantidad * d.precio_unitario for d in self.detalles),
+            Decimal("0.00")
+        )
+
+    def __repr__(self):
+        return f"<Venta {self.id}>"
+
+
+class DetalleVenta(db.Model):
+    __tablename__ = "detalle_ventas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    venta_id = db.Column(
+        db.Integer,
+        db.ForeignKey("ventas.id"),
+        nullable=False
+    )
+    producto_id = db.Column(
+        db.Integer,
+        db.ForeignKey("productos.id"),
+        nullable=False
+    )
+    cantidad = db.Column(db.Integer, nullable=False, default=1)
+    precio_unitario = db.Column(db.Numeric(10, 2), nullable=False)
+
+    venta = db.relationship("Venta", back_populates="detalles")
+    producto = db.relationship("Producto", back_populates="detalles")
+
+    def __repr__(self):
+        return (
+            f"<DetalleVenta venta={self.venta_id} "
+            f"producto={self.producto_id}>"
+        )
